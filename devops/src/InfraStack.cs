@@ -1,0 +1,108 @@
+using Amazon.CDK;
+using Amazon.CDK.AWS.DynamoDB;
+using Amazon.CDK.AWS.ECR;
+using Amazon.CDK.AWS.IAM;
+using Amazon.CDK.AWS.S3;
+using Constructs;
+
+namespace CloudArchiveDevops;
+
+public sealed class InfraStack : Stack
+{
+    public Bucket     DocumentsBucket      { get; }
+    public Table      MetadataTable        { get; }
+    public Repository ApiEcrRepo           { get; }
+    public Role       AppRunnerInstanceRole { get; }
+    public Role       AppRunnerAccessRole   { get; }
+
+    public InfraStack(Construct scope, string id, IStackProps? props = null)
+        : base(scope, id, props)
+    {
+        const string region       = "ap-southeast-2";
+        const string bedrockModel = "anthropic.claude-3-5-sonnet-20241022-v2:0";
+
+        // ── S3 Bucket ─────────────────────────────────────────────────────────────
+        DocumentsBucket = new Bucket(this, "DocumentsBucket", new BucketProps
+        {
+            // Aws.ACCOUNT_ID resolves to CloudFormation's AWS::AccountId at deploy time —
+            // the account number never appears in source control.
+            BucketName        = $"poc-cloudarchive-documents-{Aws.ACCOUNT_ID}-ap-southeast-2-an",
+            BlockPublicAccess = BlockPublicAccess.BLOCK_ALL,
+            Encryption        = BucketEncryption.S3_MANAGED,
+            EnforceSSL        = true,
+            RemovalPolicy     = RemovalPolicy.RETAIN
+        });
+
+        // ── DynamoDB Table ────────────────────────────────────────────────────────
+        MetadataTable = new Table(this, "MetadataTable", new TableProps
+        {
+            TableName    = "poc-cloudarchive-metadata",
+            PartitionKey = new Amazon.CDK.AWS.DynamoDB.Attribute
+            {
+                Name = "DocumentId",
+                Type = AttributeType.STRING
+            },
+            BillingMode   = BillingMode.PAY_PER_REQUEST,
+            RemovalPolicy = RemovalPolicy.RETAIN
+        });
+
+        // ── ECR Repository ────────────────────────────────────────────────────────
+        ApiEcrRepo = new Repository(this, "ApiRepository", new RepositoryProps
+        {
+            RepositoryName = "cloudarchive-api",
+            EmptyOnDelete  = true,
+            RemovalPolicy  = RemovalPolicy.DESTROY
+        });
+
+        // ── IAM Instance Role (App Runner → S3 / DynamoDB / Bedrock) ─────────────
+        // tasks.apprunner.amazonaws.com injects temporary credentials into the
+        // running container via instance metadata — no named AWS profile required.
+        AppRunnerInstanceRole = new Role(this, "AppRunnerInstanceRole", new RoleProps
+        {
+            RoleName  = "cloudarchive-apprunner-instance",
+            AssumedBy = new ServicePrincipal("tasks.apprunner.amazonaws.com")
+        });
+
+        // Least-privilege: only PutObject (no GetObject / DeleteObject)
+        DocumentsBucket.GrantPut(AppRunnerInstanceRole);
+
+        // Least-privilege: only PutItem (not GrantWriteData which also grants DeleteItem)
+        AppRunnerInstanceRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect    = Effect.ALLOW,
+            Actions   = new[] { "dynamodb:PutItem" },
+            Resources = new[] { MetadataTable.TableArn }
+        }));
+
+        // Least-privilege: InvokeModel scoped to Claude 3.5 Sonnet only
+        // Bedrock foundation model ARN uses double :: (no account ID segment)
+        AppRunnerInstanceRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect    = Effect.ALLOW,
+            Actions   = new[] { "bedrock:InvokeModel" },
+            Resources = new[]
+            {
+                $"arn:aws:bedrock:{region}::foundation-model/{bedrockModel}"
+            }
+        }));
+
+        // ── IAM Access Role (App Runner build pipeline → ECR image pull) ──────────
+        AppRunnerAccessRole = new Role(this, "AppRunnerAccessRole", new RoleProps
+        {
+            RoleName        = "cloudarchive-apprunner-access",
+            AssumedBy       = new ServicePrincipal("build.apprunner.amazonaws.com"),
+            ManagedPolicies = new[]
+            {
+                ManagedPolicy.FromAwsManagedPolicyName(
+                    "service-role/AWSAppRunnerServicePolicyForECRAccess")
+            }
+        });
+
+        // ── Outputs ───────────────────────────────────────────────────────────────
+        _ = new CfnOutput(this, "EcrRepositoryUri", new CfnOutputProps
+        {
+            Value       = ApiEcrRepo.RepositoryUri,
+            Description = "docker push target for the .NET API image"
+        });
+    }
+}

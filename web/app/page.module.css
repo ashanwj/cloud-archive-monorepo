@@ -1,0 +1,61 @@
+.uploading {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+.errorBanner {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 50%, transparent);
+  border-radius: 10px;
+  color: var(--color-error);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.resetBtn {
+  margin-left: auto;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.825rem;
+  transition: background 140ms;
+  white-space: nowrap;
+}
+
+.resetBtn:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.uploadAnother {
+  display: block;
+  margin: 1.25rem auto 0;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: border-color 140ms, color 140ms;
+}
+
+.uploadAnother:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
