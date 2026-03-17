@@ -100,7 +100,8 @@ public sealed class ComputeStack : Stack
         // omitting it causes "Monorepo spec provided without applications key".
         const string buildSpec = @"version: 1
 applications:
-  - frontend:
+  - appRoot: web
+    frontend:
       phases:
         preBuild:
           commands:
@@ -114,8 +115,7 @@ applications:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
-      appRoot: web";
+          - node_modules/**/*";
 
         var amplifyApp = new CfnApp(this, "AmplifyApp", new CfnAppProps
         {
