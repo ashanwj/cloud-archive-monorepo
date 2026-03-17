@@ -115,13 +115,16 @@ public sealed class InfraStack : Stack
                 githubOidc.OpenIdConnectProviderArn,
                 new Dictionary<string, object>
                 {
-                    // Scope to this exact repo; :* covers all branches and PR refs
-                    ["StringLike"] = new Dictionary<string, string>
+                    // Scope to this exact repo; :* covers all branches and PR refs.
+                    // Inner dicts must be Dictionary<string, object> — CDK's JSON serializer
+                    // treats Dictionary<string, string> values as scalars in some versions,
+                    // which produces a broken trust policy condition block.
+                    ["StringLike"] = new Dictionary<string, object>
                     {
                         ["token.actions.githubusercontent.com:sub"] =
                             "repo:AshanWj/cloud-archive-monorepo:*"
                     },
-                    ["StringEquals"] = new Dictionary<string, string>
+                    ["StringEquals"] = new Dictionary<string, object>
                     {
                         ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
                     }
