@@ -13,18 +13,15 @@ RUN dotnet publish CloudArchive.Api.csproj \
     --output /app/publish \
     --no-restore
 
-# Stage 2 — Runtime (lean ASP.NET image, no SDK)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+# Stage 2 — Runtime (chiseled Ubuntu: minimal attack surface, built-in non-root 'app' user)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
 WORKDIR /app
-
-# Non-root user for container security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 COPY --from=build /app/publish .
 
 # App Runner routes traffic to port 8080
 EXPOSE 8080
 
-USER appuser
+USER app
 
 ENTRYPOINT ["dotnet", "CloudArchive.Api.dll"]

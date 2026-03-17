@@ -119,7 +119,7 @@ applications:
             Name           = "cloudarchive-web",
             Platform       = "WEB_COMPUTE",
             OauthToken     = githubToken,
-            Repository     = "https://github.com/YOUR_ORG/cloud-archive-monorepo", // ← replace before deploy
+            Repository     = "https://github.com/AshanWj/cloud-archive-monorepo",
             IamServiceRole = amplifyRole.RoleArn,
             BuildSpec      = buildSpec,
 

@@ -26,7 +26,7 @@ public sealed class InfraStack : Stack
         {
             // Aws.ACCOUNT_ID resolves to CloudFormation's AWS::AccountId at deploy time —
             // the account number never appears in source control.
-            BucketName        = $"poc-cloudarchive-documents-{Aws.ACCOUNT_ID}-ap-southeast-2-an",
+            BucketName        = $"poc-cloudarchive-documents-{Aws.ACCOUNT_ID}-ap-southeast-2",
             BlockPublicAccess = BlockPublicAccess.BLOCK_ALL,
             Encryption        = BucketEncryption.S3_MANAGED,
             EnforceSSL        = true,
