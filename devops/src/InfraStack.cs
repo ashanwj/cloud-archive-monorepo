@@ -100,13 +100,18 @@ public sealed class InfraStack : Stack
         });
 
         // ── GitHub Actions OIDC + IAM Role ────────────────────────────────────────
-        // Allows GitHub Actions to assume an IAM role via OpenID Connect —
-        // no long-lived AWS credentials stored in GitHub secrets.
-        var githubOidc = new OpenIdConnectProvider(this, "GitHubOidc", new OpenIdConnectProviderProps
-        {
-            Url       = "https://token.actions.githubusercontent.com",
-            ClientIds = new[] { "sts.amazonaws.com" }
-        });
+        // Import the OIDC provider by ARN rather than creating it with CDK.
+        // CDK's OpenIdConnectProvider uses a Lambda custom resource that can conflict
+        // if a provider for this URL already exists in the account — importing avoids that.
+        // One-time setup: aws iam create-open-id-connect-provider \
+        //   --url https://token.actions.githubusercontent.com \
+        //   --client-id-list sts.amazonaws.com \
+        //   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 \
+        //   --profile cloudarchive
+        var githubOidc = OpenIdConnectProvider.FromOpenIdConnectProviderArn(
+            this, "GitHubOidc",
+            $"arn:aws:iam::{Aws.ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+        );
 
         var githubActionsRole = new Role(this, "GitHubActionsRole", new RoleProps
         {
