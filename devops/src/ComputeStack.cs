@@ -94,24 +94,28 @@ public sealed class ComputeStack : Stack
         //
         // Build spec targets the /web subdirectory of the monorepo.
         // baseDirectory = web/.next matches where `next build` places SSR output.
-        // AMPLIFY_MONOREPO_APP_ROOT=web tells Amplify to cd into web/ before building,
-        // so all paths here are relative to web/ (no "cd web &&" prefix needed).
+        // AMPLIFY_MONOREPO_APP_ROOT=web navigates Amplify into web/ before the build runs,
+        // so paths here are relative to web/ (no "cd web &&", baseDirectory is ".next" not "web/.next").
+        // The "applications:" wrapper is required when AMPLIFY_MONOREPO_APP_ROOT is set —
+        // omitting it causes "Monorepo spec provided without applications key".
         const string buildSpec = @"version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: .next
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*";
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+      appRoot: web";
 
         var amplifyApp = new CfnApp(this, "AmplifyApp", new CfnAppProps
         {
