@@ -1,8 +1,8 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.Amplify;
+using Amazon.CDK.AWS.SSM;
 using Amazon.CDK.AWS.AppRunner;
 using Amazon.CDK.AWS.IAM;
-using Amazon.CDK.AWS.SSM;
 using Constructs;
 
 namespace CloudArchiveDevops;
@@ -66,13 +66,12 @@ public sealed class ComputeStack : Stack
         var appRunnerUrl = $"https://{appRunner.AttrServiceUrl}";
 
         // ── GitHub OAuth Token from SSM Parameter Store ────────────────────────────
-        // Store before running `cdk synth`:
+        // Resolved at CDK synth time via SSM lookup (String type — Amplify does not
+        // support ssm-secure dynamic references on OauthToken).
+        // Store once with:
         //   aws ssm put-parameter --name /cloudarchive/github-token \
-        //     --value "ghp_..." --type SecureString \
+        //     --value "ghp_..." --type String \
         //     --region ap-southeast-2 --profile cloudarchive
-        //
-        // ValueFromLookup resolves at synth time (not deploy time).
-        // The parameter must exist in SSM before the first `cdk synth`.
         var githubToken = StringParameter.ValueFromLookup(this, "/cloudarchive/github-token");
 
         // ── Amplify IAM Service Role ───────────────────────────────────────────────
@@ -95,24 +94,24 @@ public sealed class ComputeStack : Stack
         //
         // Build spec targets the /web subdirectory of the monorepo.
         // baseDirectory = web/.next matches where `next build` places SSR output.
+        // AMPLIFY_MONOREPO_APP_ROOT=web tells Amplify to cd into web/ before building,
+        // so all paths here are relative to web/ (no "cd web &&" prefix needed).
         const string buildSpec = @"version: 1
-applications:
-  - frontend:
-      phases:
-        preBuild:
-          commands:
-            - cd web && npm ci
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: web/.next
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - web/node_modules/**/*
-      appRoot: web";
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*";
 
         var amplifyApp = new CfnApp(this, "AmplifyApp", new CfnAppProps
         {
@@ -125,6 +124,8 @@ applications:
 
             EnvironmentVariables = new[]
             {
+                // Tells Amplify's framework detector to look in web/ for package.json.
+                new CfnApp.EnvironmentVariableProperty { Name = "AMPLIFY_MONOREPO_APP_ROOT", Value = "web" },
                 // Consumed by next.config.ts rewrites() at SSR server startup.
                 // Points Next.js to the App Runner URL instead of localhost.
                 new CfnApp.EnvironmentVariableProperty { Name = "DOTNET_API_URL", Value = appRunnerUrl }
@@ -141,6 +142,7 @@ applications:
 
             EnvironmentVariables = new[]
             {
+                new CfnBranch.EnvironmentVariableProperty { Name = "AMPLIFY_MONOREPO_APP_ROOT", Value = "web" },
                 new CfnBranch.EnvironmentVariableProperty { Name = "DOTNET_API_URL", Value = appRunnerUrl }
             }
         });
