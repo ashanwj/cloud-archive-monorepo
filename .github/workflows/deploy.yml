@@ -1,0 +1,55 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Required for OIDC token request
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: cloudarchive-api
+  GITHUB_ACTIONS_ROLE_ARN: arn:aws:iam::722141136946:role/cloudarchive-github-actions
+  # TODO: fill in after `cdk deploy CloudArchiveComputeStack` — copy from the AppRunnerServiceArn output
+  APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-southeast-2:722141136946:service/cloudarchive-api/26fe4fb9f4da445c803d93098a0acf2f
+
+jobs:
+  deploy-api:
+    name: Push to ECR & Deploy App Runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Trigger App Runner deployment
+        run: |
+          aws apprunner start-deployment \
+            --service-arn ${{ env.APP_RUNNER_SERVICE_ARN }}
+
+  # Next.js (Amplify) deploys automatically via its GitHub webhook.
+  # EnableAutoBuild=true on the main branch in ComputeStack means no
+  # GitHub Actions step is needed here — Amplify fires independently.

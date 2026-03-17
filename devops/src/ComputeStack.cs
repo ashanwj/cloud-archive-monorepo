@@ -169,5 +169,11 @@ applications:
             Value       = $"https://main.{amplifyApp.AttrDefaultDomain}",
             Description = "Live frontend URL"
         });
+
+        _ = new CfnOutput(this, "AppRunnerServiceArn", new CfnOutputProps
+        {
+            Value       = appRunner.AttrServiceArn,
+            Description = "Paste into .github/workflows/deploy.yml APP_RUNNER_SERVICE_ARN"
+        });
     }
 }

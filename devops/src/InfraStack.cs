@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Amazon.CDK;
 using Amazon.CDK.AWS.DynamoDB;
 using Amazon.CDK.AWS.ECR;
@@ -98,11 +99,59 @@ public sealed class InfraStack : Stack
             }
         });
 
+        // ── GitHub Actions OIDC + IAM Role ────────────────────────────────────────
+        // Allows GitHub Actions to assume an IAM role via OpenID Connect —
+        // no long-lived AWS credentials stored in GitHub secrets.
+        var githubOidc = new OpenIdConnectProvider(this, "GitHubOidc", new OpenIdConnectProviderProps
+        {
+            Url       = "https://token.actions.githubusercontent.com",
+            ClientIds = new[] { "sts.amazonaws.com" }
+        });
+
+        var githubActionsRole = new Role(this, "GitHubActionsRole", new RoleProps
+        {
+            RoleName  = "cloudarchive-github-actions",
+            AssumedBy = new WebIdentityPrincipal(
+                githubOidc.OpenIdConnectProviderArn,
+                new Dictionary<string, object>
+                {
+                    // Scope to this exact repo; :* covers all branches and PR refs
+                    ["StringLike"] = new Dictionary<string, string>
+                    {
+                        ["token.actions.githubusercontent.com:sub"] =
+                            "repo:AshanWj/cloud-archive-monorepo:*"
+                    },
+                    ["StringEquals"] = new Dictionary<string, string>
+                    {
+                        ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
+                    }
+                }
+            )
+        });
+
+        // ECR: push images to the cloudarchive-api repo only
+        ApiEcrRepo.GrantPush(githubActionsRole);
+
+        // App Runner: trigger deployments only — no create/delete/update
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect    = Effect.ALLOW,
+            Actions   = new[] { "apprunner:StartDeployment" },
+            // Wildcard on the service ID segment — the ID is only known after first deploy
+            Resources = new[] { "arn:aws:apprunner:ap-southeast-2:722141136946:service/cloudarchive-api/*" }
+        }));
+
         // ── Outputs ───────────────────────────────────────────────────────────────
         _ = new CfnOutput(this, "EcrRepositoryUri", new CfnOutputProps
         {
             Value       = ApiEcrRepo.RepositoryUri,
             Description = "docker push target for the .NET API image"
+        });
+
+        _ = new CfnOutput(this, "GitHubActionsRoleArn", new CfnOutputProps
+        {
+            Value       = githubActionsRole.RoleArn,
+            Description = "Paste into .github/workflows/deploy.yml GITHUB_ACTIONS_ROLE_ARN"
         });
     }
 }
