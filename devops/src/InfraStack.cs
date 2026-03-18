@@ -100,14 +100,16 @@ public sealed class InfraStack : Stack
         });
 
         // ── GitHub Actions OIDC + IAM Role ────────────────────────────────────────
-        // Import the OIDC provider by ARN rather than creating it with CDK.
-        // CDK's OpenIdConnectProvider uses a Lambda custom resource that can conflict
-        // if a provider for this URL already exists in the account — importing avoids that.
-        // One-time setup: aws iam create-open-id-connect-provider \
-        //   --url https://token.actions.githubusercontent.com \
-        //   --client-id-list sts.amazonaws.com \
-        //   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 \
-        //   --profile cloudarchive
+        // Import the OIDC provider by ARN — never create it via CDK.
+        // CDK's OpenIdConnectProvider uses a Lambda custom resource that conflicts
+        // if a provider for this URL already exists in the account (AWS allows only one
+        // per URL per account). Importing avoids that conflict entirely.
+        // One-time manual setup (run once in PowerShell before first cdk deploy):
+        //   aws iam create-open-id-connect-provider `
+        //     --url https://token.actions.githubusercontent.com `
+        //     --client-id-list sts.amazonaws.com `
+        //     --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 `
+        //     --profile cloudarchive
         var githubOidc = OpenIdConnectProvider.FromOpenIdConnectProviderArn(
             this, "GitHubOidc",
             $"arn:aws:iam::{Aws.ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
@@ -121,9 +123,9 @@ public sealed class InfraStack : Stack
                 new Dictionary<string, object>
                 {
                     // Scope to this exact repo; :* covers all branches and PR refs.
-                    // Inner dicts must be Dictionary<string, object> — CDK's JSON serializer
-                    // treats Dictionary<string, string> values as scalars in some versions,
-                    // which produces a broken trust policy condition block.
+                    // Inner dicts MUST be Dictionary<string,object> not Dictionary<string,string>.
+                    // CDK's JSON serializer wraps string-value dicts as scalars in some versions,
+                    // producing a malformed trust policy that AWS silently rejects.
                     ["StringLike"] = new Dictionary<string, object>
                     {
                         ["token.actions.githubusercontent.com:sub"] =
