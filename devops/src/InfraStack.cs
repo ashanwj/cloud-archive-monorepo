@@ -129,7 +129,7 @@ public sealed class InfraStack : Stack
                     ["StringLike"] = new Dictionary<string, object>
                     {
                         ["token.actions.githubusercontent.com:sub"] =
-                            "repo:AshanWj/cloud-archive-monorepo:*"
+                            "repo:ashanwj/cloud-archive-monorepo:*"
                     },
                     ["StringEquals"] = new Dictionary<string, object>
                     {
