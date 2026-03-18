@@ -13,8 +13,10 @@ env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: cloudarchive-api
   GITHUB_ACTIONS_ROLE_ARN: arn:aws:iam::722141136946:role/cloudarchive-github-actions
-  # TODO: fill in after `cdk deploy CloudArchiveComputeStack` — copy from the AppRunnerServiceArn output
   APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-southeast-2:722141136946:service/cloudarchive-api/d106a80a3dba48039881f76c32c75fde
+  # TODO: fill in after `cdk deploy CloudArchiveComputeStack` — copy AmplifyAppId output
+  # Run: aws amplify list-apps --query 'apps[?name==`cloudarchive-web`].appId' --output text --profile cloudarchive
+  AMPLIFY_APP_ID: "d20hw7pj39tnza"
 
 jobs:
   deploy-api:
@@ -50,6 +52,21 @@ jobs:
           aws apprunner start-deployment \
             --service-arn ${{ env.APP_RUNNER_SERVICE_ARN }}
 
-  # Next.js (Amplify) deploys automatically via its GitHub webhook.
-  # EnableAutoBuild=true on the main branch in ComputeStack means no
-  # GitHub Actions step is needed here — Amplify fires independently.
+  deploy-web:
+    name: Trigger Amplify Build
+    runs-on: ubuntu-latest
+    needs: deploy-api   # only runs after API deploy succeeds
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Trigger Amplify deployment
+        run: |
+          aws amplify start-job \
+            --app-id ${{ env.AMPLIFY_APP_ID }} \
+            --branch-name main \
+            --job-type RELEASE

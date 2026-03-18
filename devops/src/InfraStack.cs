@@ -151,6 +151,14 @@ public sealed class InfraStack : Stack
             Resources = new[] { "arn:aws:apprunner:ap-southeast-2:722141136946:service/cloudarchive-api/*" }
         }));
 
+        // Amplify: trigger builds only — no app create/delete/update
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect    = Effect.ALLOW,
+            Actions   = new[] { "amplify:StartJob" },
+            Resources = new[] { "arn:aws:amplify:ap-southeast-2:722141136946:apps/*/branches/main/jobs/*" }
+        }));
+
         // ── Outputs ───────────────────────────────────────────────────────────────
         _ = new CfnOutput(this, "EcrRepositoryUri", new CfnOutputProps
         {
