@@ -14,7 +14,7 @@ env:
   ECR_REPOSITORY: cloudarchive-api
   GITHUB_ACTIONS_ROLE_ARN: arn:aws:iam::722141136946:role/cloudarchive-github-actions
   # TODO: fill in after `cdk deploy CloudArchiveComputeStack` — copy from the AppRunnerServiceArn output
-  APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-southeast-2:722141136946:service/cloudarchive-api/26fe4fb9f4da445c803d93098a0acf2f
+  APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-southeast-2:722141136946:service/cloudarchive-api/d106a80a3dba48039881f76c32c75fde
 
 jobs:
   deploy-api:
