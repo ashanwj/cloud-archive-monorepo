@@ -49,7 +49,7 @@ export default function Home() {
   return (
     <main>
       <h1>CloudArchive</h1>
-      <p className="subtitle">Upload a document for AI-powered archiving and summarisation</p>
+      <p className="subtitle">Upload a document for AI-powered archiving and summarisation - Iteration1</p>
 
       <DropZone
         onFile={handleFile}
