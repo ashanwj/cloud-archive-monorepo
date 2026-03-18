@@ -69,6 +69,7 @@ public sealed class DocumentService : IDocumentService
         }
     }
 
+    //Private methods for S3 upload, Bedrock summary generation, and DynamoDB metadata save, each returning a Result<T> indicating success or failure with error messages logged appropriately.
     private async Task<Result<bool>> UploadToS3Async(IFormFile file, string s3Key)
     {
         try
