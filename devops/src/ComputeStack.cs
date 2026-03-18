@@ -142,7 +142,10 @@ applications:
             BranchName      = "main",
             Stage           = "PRODUCTION",
             Framework       = "Next.js - SSR",
-            EnableAutoBuild = true,
+            // Disabled — GitHub Actions triggers Amplify via `aws amplify start-job`
+            // after the API deploy-api job succeeds. Auto-build would fire immediately
+            // on push, before CI passes, which defeats the pipeline ordering.
+            EnableAutoBuild = false,
 
             EnvironmentVariables = new[]
             {
